@@ -98,26 +98,33 @@ export default function AIChatDemo() {
   }, [messages, loading]);
 
   useEffect(() => {
+    // Focus input on mount
     inputRef.current?.focus();
   }, []);
 
-  const sendMessage = async () => {
-    const trimmed = input.trim();
-    if (!trimmed || loading) return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!input.trim() || loading) return;
 
-    setError(null);
-    const userMsg = { role: "user", content: trimmed };
-    const updatedMessages = [...messages, userMsg];
+    // No client-side API key check needed with backend proxy functionality
+
+    const userMessage = { role: "user", content: input.trim() };
+    const updatedMessages = [...messages, userMessage];
+
     setMessages(updatedMessages);
     setInput("");
     setLoading(true);
+    setError(null);
+
+    // Reset textarea height
+    e.target.style.height = "auto";
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-3-5-sonnet-20240620",
+          model: "claude-3-7-sonnet-20250219",
           max_tokens: 1000,
           system: SYSTEM_PROMPT,
           messages: updatedMessages.map((m) => ({
@@ -128,175 +135,151 @@ export default function AIChatDemo() {
       });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || "Failed to fetch response");
       }
 
       const data = await response.json();
-      const assistantText = data.content
-        ?.map((block) => (block.type === "text" ? block.text : ""))
-        .filter(Boolean)
-        .join("\n");
+      const assistantMessage = data.content?.[0]?.text || "No response content.";
 
-      if (assistantText) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: assistantText },
-        ]);
-      }
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: assistantMessage },
+      ]);
     } catch (err) {
-      setError(err.message || "Something went wrong.");
+      console.error("Chat Error:", err);
+      setError(err.message || "An unexpected error occurred.");
     } finally {
       setLoading(false);
-      inputRef.current?.focus();
+      // Construct a new ref focus to keep user in flow
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      handleSubmit(e);
     }
   };
 
-  const clearChat = () => {
-    setMessages([]);
-    setError(null);
-    inputRef.current?.focus();
+  const adjustTextareaHeight = (e) => {
+    e.target.style.height = "auto";
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
   };
-
-  const examplePrompts = [
-    "Explain microservices vs monolith",
-    "Write a Python quicksort",
-    "Compare REST and GraphQL",
-  ];
 
   return (
     <div
       style={{
-        height: "100vh",
-        width: "100vw",
+        width: "100%",
+        maxWidth: 900,
+        margin: "0 auto",
+        padding: "20px",
         display: "flex",
         flexDirection: "column",
-        background: "#ffffff",
-        fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
-        overflow: "hidden",
+        height: "100vh",
       }}
     >
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        textarea:focus { outline: none; }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-      `}</style>
-
       {/* Header */}
-      <div
+      <header
         style={{
-          padding: "16px 24px",
-          borderBottom: "1px solid #e2e8f0",
           display: "flex",
-          alignItems: "center",
           justifyContent: "space-between",
-          background: "#ffffff",
-          flexShrink: 0,
+          alignItems: "center",
+          marginBottom: 20,
+          paddingBottom: 20,
+          borderBottom: "1px solid #e2e8f0",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div
             style={{
-              width: 38,
-              height: 38,
+              width: 40,
+              height: 40,
               borderRadius: 12,
-              background: "linear-gradient(135deg, #0f172a, #334155)",
+              background: "#0f172a",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 2px 8px rgba(15,23,42,0.2)",
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="2">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              <path d="M8 10h.01M12 10h.01M16 10h.01" />
             </svg>
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: "#0f172a", letterSpacing: "-0.02em" }}>
-              AI Chat Assistant
-            </div>
-            <div style={{ fontSize: 12, color: "#64748b", fontWeight: 500 }}>
-              Powered by Claude API · LLM Integration Demo
-            </div>
+            <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>AI Chat Assistant</h1>
+            <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>Powered by Claude API · LLM Integration Demo</p>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <div
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: "#22c55e",
-              boxShadow: "0 0 6px rgba(34,197,94,0.5)",
-            }}
-          />
-          <span style={{ fontSize: 12, color: "#64748b", fontWeight: 500 }}>Connected</span>
-          {messages.length > 0 && (
-            <button
-              onClick={clearChat}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <a
+              href="/documentation.html"
+              target="_blank"
               style={{
-                marginLeft: 12,
-                padding: "6px 14px",
-                borderRadius: 8,
-                border: "1px solid #e2e8f0",
-                background: "#fff",
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 600,
+                fontSize: 13,
                 color: "#64748b",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = "#f8fafc";
-                e.target.style.borderColor = "#cbd5e1";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = "#fff";
-                e.target.style.borderColor = "#e2e8f0";
+                textDecoration: "none",
+                marginRight: 8
               }}
             >
-              Clear
-            </button>
-          )}
+              Docs
+            </a>
+            <div
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: "#22c55e",
+                boxShadow: "0 0 0 4px rgba(34,197,94,0.1)",
+              }}
+            />
+            <span style={{ fontSize: 13, fontWeight: 500, color: "#64748b" }}>Connected</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm("Clear all messages?")) setMessages([]);
+            }}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: "1px solid #e2e8f0",
+              background: "white",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#64748b",
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+          >
+            Clear
+          </button>
         </div>
-      </div>
+      </header>
 
-      {/* Messages Area */}
+      {/* Chat Area */}
       <div
         ref={chatContainerRef}
         style={{
           flex: 1,
           overflowY: "auto",
-          padding: "24px 24px 8px",
+          paddingRight: 8,
+          marginBottom: 20,
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        {messages.length === 0 && !loading && (
+        {messages.length === 0 ? (
           <div
             style={{
+              flex: 1,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              height: "100%",
-              animation: "fadeIn 0.5s ease-out",
-              gap: 24,
+              opacity: 0.5,
+              marginTop: -60,
             }}
           >
             <div
@@ -304,69 +287,55 @@ export default function AIChatDemo() {
                 width: 64,
                 height: 64,
                 borderRadius: 20,
-                background: "linear-gradient(135deg, #0f172a, #334155)",
+                background: "#f1f5f9",
+                marginBottom: 20,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: "0 4px 20px rgba(15,23,42,0.2)",
               }}
             >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="1.5">
-                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
               </svg>
             </div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.03em", marginBottom: 6 }}>
-                How can I help you?
-              </div>
-              <div style={{ fontSize: 14, color: "#94a3b8", maxWidth: 360 }}>
-                This chat connects directly to an LLM API. Ask anything to see it in action.
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 4 }}>
-              {examplePrompts.map((prompt) => (
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 500 }}>No messages yet</p>
+            <p style={{ margin: "4px 0 24px", fontSize: 14 }}>Start a conversation with the AI</p>
+            <div style={{ display: "flex", gap: 10 }}>
+              {["Explain quantum physics", "Write a Python quicksort", "Haiku about coding"].map((txt) => (
                 <button
-                  key={prompt}
-                  onClick={() => {
-                    setInput(prompt);
-                    setTimeout(() => inputRef.current?.focus(), 50);
-                  }}
+                  key={txt}
+                  onClick={() => setInput(txt)}
                   style={{
-                    padding: "8px 16px",
+                    padding: "8px 14px",
                     borderRadius: 20,
                     border: "1px solid #e2e8f0",
-                    background: "#f8fafc",
-                    cursor: "pointer",
+                    background: "white",
                     fontSize: 13,
                     color: "#475569",
-                    fontWeight: 500,
-                    transition: "all 0.2s",
-                    fontFamily: "inherit",
+                    cursor: "pointer",
+                    transition: "transform 0.1s",
                   }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = "#f1f5f9";
-                    e.target.style.borderColor = "#cbd5e1";
-                    e.target.style.transform = "translateY(-1px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = "#f8fafc";
-                    e.target.style.borderColor = "#e2e8f0";
-                    e.target.style.transform = "translateY(0)";
-                  }}
+                  onMouseEnter={(e) => (e.target.style.background = "#f8fafc")}
+                  onMouseLeave={(e) => (e.target.style.background = "white")}
                 >
-                  {prompt}
+                  {txt}
                 </button>
               ))}
             </div>
           </div>
+        ) : (
+          messages.map((msg, i) => (
+            <MessageBubble
+              key={i}
+              role={msg.role}
+              content={msg.content}
+              isLatest={i === messages.length - 1}
+            />
+          ))
         )}
 
-        {messages.map((msg, i) => (
-          <MessageBubble key={i} role={msg.role} content={msg.content} isLatest={i === messages.length - 1} />
-        ))}
-
         {loading && (
-          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 16 }}>
             <div
               style={{
                 width: 32,
@@ -376,6 +345,8 @@ export default function AIChatDemo() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                marginRight: 10,
+                marginTop: 4,
                 flexShrink: 0,
               }}
             >
@@ -385,9 +356,10 @@ export default function AIChatDemo() {
             </div>
             <div
               style={{
-                padding: "8px 16px",
+                padding: "12px 16px",
                 borderRadius: "18px 18px 18px 4px",
                 background: "#f1f5f9",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
               }}
             >
               <TypingIndicator />
@@ -398,116 +370,149 @@ export default function AIChatDemo() {
         {error && (
           <div
             style={{
+              margin: "12px 0",
               padding: "12px 16px",
-              borderRadius: 12,
+              borderRadius: 8,
               background: "#fef2f2",
-              border: "1px solid #fecaca",
-              color: "#dc2626",
-              fontSize: 13,
-              marginBottom: 16,
+              border: "1px solid #fee2e2",
+              color: "#b91c1c",
+              fontSize: 14,
               display: "flex",
               alignItems: "center",
               gap: 8,
             }}
           >
-            <span style={{ fontSize: 16 }}>⚠</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
             {error}
           </div>
         )}
-
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}
-      <div
-        style={{
-          padding: "16px 24px 20px",
-          borderTop: "1px solid #f1f5f9",
-          background: "#ffffff",
-          flexShrink: 0,
-        }}
-      >
-        <div
+      <div style={{ position: "relative" }}>
+        <form
+          onSubmit={handleSubmit}
           style={{
-            display: "flex",
-            gap: 10,
-            alignItems: "flex-end",
-            background: "#f8fafc",
+            background: "white",
             borderRadius: 16,
-            border: "1.5px solid #e2e8f0",
-            padding: "6px 6px 6px 16px",
-            transition: "border-color 0.2s, box-shadow 0.2s",
+            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            border: "1px solid #e2e8f0",
+            padding: "8px 8px 8px 16px",
+            display: "flex",
+            alignItems: "flex-end",
+            transition: "box-shadow 0.2s",
           }}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = "#94a3b8";
-            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(148,163,184,0.15)";
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = "#e2e8f0";
-            e.currentTarget.style.boxShadow = "none";
-          }}
+          onFocus={(e) => (e.currentTarget.style.boxShadow = "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)")}
+          onBlur={(e) => (e.currentTarget.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)")}
         >
           <textarea
             ref={inputRef}
+            rows={1}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              adjustTextareaHeight(e);
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Type your message..."
-            rows={1}
             style={{
               flex: 1,
               border: "none",
               background: "transparent",
               resize: "none",
-              fontSize: 14.5,
+              outline: "none",
+              padding: "10px 0",
+              fontSize: 15,
               lineHeight: 1.5,
+              maxHeight: 200,
               color: "#1e293b",
-              fontFamily: "inherit",
-              padding: "8px 0",
-              maxHeight: 120,
-              overflowY: "auto",
-            }}
-            onInput={(e) => {
-              e.target.style.height = "auto";
-              e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
             }}
           />
-          <button
-            onClick={sendMessage}
-            disabled={!input.trim() || loading}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              border: "none",
-              background:
-                input.trim() && !loading
-                  ? "linear-gradient(135deg, #0f172a, #334155)"
-                  : "#e2e8f0",
-              cursor: input.trim() && !loading ? "pointer" : "not-allowed",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all 0.2s",
-              flexShrink: 0,
-            }}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke={input.trim() && !loading ? "#ffffff" : "#94a3b8"}
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          <div style={{ display: "flex", gap: 8, paddingBottom: 4, paddingRight: 4 }}>
+            <button
+              type="button"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                border: "none",
+                background: "transparent",
+                color: "#10b981",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              title="Model connected"
             >
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
-          </button>
-        </div>
-        
+              <div style={{ position: "relative" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" />
+                  <path d="M8.5 8.5v.01" />
+                  <path d="M16 15.5v.01" />
+                </svg>
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    right: 0,
+                    width: 8,
+                    height: 8,
+                    background: "white",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <div style={{ width: 6, height: 6, background: "#10b981", borderRadius: "50%" }} />
+                </div>
+              </div>
+            </button>
+            <button
+              type="submit"
+              disabled={loading || !input.trim()}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                border: "none",
+                background: loading || !input.trim() ? "#e2e8f0" : "#0f172a",
+                color: loading || !input.trim() ? "#94a3b8" : "white",
+                cursor: loading || !input.trim() ? "default" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+              }}
+            >
+              {loading ? (
+                <div
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    border: "2px solid rgba(255,255,255,0.3)",
+                    borderTopColor: "white",
+                    animation: "spin 1s linear infinite",
+                  }}
+                >
+                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </div>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

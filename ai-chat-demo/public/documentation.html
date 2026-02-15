@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Demo - Technical Documentation</title>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --secondary: #334155;
+            --accent: #0ea5e9;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --code-bg: #1e293b;
+            --code-text: #e2e8f0;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--bg);
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        header {
+            background: white;
+            padding: 40px 0;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 40px;
+        }
+        h1 {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin: 0 0 10px 0;
+        }
+        h2 {
+            font-size: 1.8rem;
+            color: var(--secondary);
+            margin-top: 40px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        h3 {
+            font-size: 1.3rem;
+            color: var(--secondary);
+            margin-top: 25px;
+        }
+        p {
+            margin-bottom: 16px;
+        }
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            background: #e2e8f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #d946ef;
+        }
+        pre {
+            background: var(--code-bg);
+            color: var(--code-text);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        pre code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+        }
+        .alert {
+            background: #dbeafe;
+            border-left: 4px solid var(--accent);
+            padding: 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 20px 0;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .status-fixed {
+            background: #dcfce7;
+            color: #166534;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        .footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            color: #64748b;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="container" style="padding: 0 20px;">
+        <h1>AI Chat Demo Documentation</h1>
+        <p style="font-size: 1.1rem; color: #64748b;">Technical Overview, Architecture, and Setup Guide</p>
+    </div>
+</header>
+
+<div class="container">
+
+    <section id="executive-summary">
+        <h2>Executive Summary</h2>
+        <p>
+            The <strong>AI Chat Demo</strong> is a React-based application that interfaces with the Anthropic Claude API.
+            It provides a modern, responsive chat interface for users to interact with Large Language Models (LLMs).
+        </p>
+        <p>
+            This document details the recent updates made to resolve connection and model availability issues, enabling a fully functional local development environment.
+        </p>
+    </section>
+
+    <section id="recent-updates">
+        <h2>Recent Fixes & Improvements</h2>
+        
+        <h3>1. API Connection Fix <span class="status-badge status-fixed">Resolved</span></h3>
+        <p>
+            <strong>Issue:</strong> The application originally attempted to call <code>/api/chat</code>, assuming a Vercel serverless environment. In the local Vite environment, this endpoint did not exist, causing a <code>404 Not Found</code> and "Unexpected end of JSON input" error.
+        </p>
+        <p>
+            <strong>Solution:</strong> Implemented a local Express Node.js server to handle API requests and configured a proxy.
+        </p>
+        <ul>
+            <li>Created <code>local-server.js</code> to mimic the serverless function handler.</li>
+            <li>Configured <code>vite.config.js</code> to proxy <code>/api</code> requests to the local server (port 3001).</li>
+        </ul>
+
+        <h3>2. Model Availability Fix <span class="status-badge status-fixed">Resolved</span></h3>
+        <p>
+            <strong>Issue:</strong> The application was configured to use <code>claude-3-5-sonnet-20240620</code> (and later <code>20241022</code>), but these specific model versions were not accessible/found for the provided API key, resulting in a <code>not_found_error</code> type 404 from Anthropic.
+        </p>
+        <p>
+            <strong>Solution:</strong> 
+            Identified available models using a script and updated the configuration to use the latest supported model: <strong>Claude 3.7 Sonnet</strong> (<code>claude-3-7-sonnet-20250219</code>).
+        </p>
+    </section>
+
+    <section id="architecture">
+        <h2>System Architecture</h2>
+        <p>The application now uses a hybrid approach for local development:</p>
+        
+        <div class="alert">
+            <strong>Frontend (Vite:5173)</strong> &rarr; <strong>Proxy</strong> &rarr; <strong>Local Server (Node:3001)</strong> &rarr; <strong>Anthropic API</strong>
+        </div>
+
+        <ol>
+            <li><strong>Frontend:</strong> React + Vite serving the UI.</li>
+            <li><strong>Vite Proxy:</strong> Forwards any request starting with <code>/api</code> to <code>http://localhost:3001</code>.</li>
+            <li><strong>Local Server:</strong> An Express.js server that:
+                <ul>
+                    <li>Listens on port 3001.</li>
+                    <li>Securely loads the API key from <code>.env</code>.</li>
+                    <li>Forwards the request to Anthropic's API.</li>
+                    <li>Returns the response to the frontend.</li>
+                </ul>
+            </li>
+        </ol>
+    </section>
+
+    <section id="how-to-run">
+        <h2>How to Run</h2>
+        <p>To start the application with both the frontend and the backend server running concurrently:</p>
+        
+        <pre><code>npm run dev:all</code></pre>
+        
+        <p>This command executes:</p>
+        <ol>
+            <li><code>npm run server</code>: Starts the local Express backend.</li>
+            <li><code>npm run dev</code>: Starts the Vite frontend development server.</li>
+        </ol>
+        
+        <p>Access the application at:</p>
+        <pre><code>http://localhost:5173</code></pre>
+    </section>
+
+    <section id="file-structure">
+        <h2>Key File Structure</h2>
+        <pre><code>ai-chat-demo/
+├── src/
+│   └── App.jsx           # Main Chat Interface & Logic
+├── api/
+│   └── chat.js           # Serverless Handler (Shared by Vercel & Local Server)
+├── local-server.js       # [NEW] Local Backend Entry Point
+├── check-models.js       # [NEW] Utility to list available Anthropic models
+├── vite.config.js        # Vite config with Proxy setup
+└── package.json          # Scripts dependencies</code></pre>
+    </section>
+
+    <section id="configuration">
+        <h2>Configuration</h2>
+        <p>The project relies on environment variables defined in <code>.env</code>:</p>
+        <pre><code>VITE_ANTHROPIC_API_KEY=sk-ant-...</code></pre>
+        <p>
+            <strong>Note:</strong> In this setup, the API key is accessible to the <code>local-server.js</code> via <code>dotenv</code>. 
+            The proxy ensures the browser does not need to handle the API key directly for requests to Anthropic, preventing CORS issues.
+        </p>
+    </section>
+
+    <div class="footer">
+        &copy; 2026 AI Chat Demo Project. Documentation generated by Agent.
+    </div>
+
+</div>
+
+</body>
+</html>
