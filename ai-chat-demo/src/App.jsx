@@ -213,19 +213,19 @@ export default function AIChatDemo() {
             <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>Powered by Claude API · LLM Integration Demo</p>
           </div>
         </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <a
-              href="/documentation.html"
-              target="_blank"
-              style={{
-                fontSize: 13,
-                color: "#64748b",
-                textDecoration: "none",
-                marginRight: 8
-              }}
-            >
-              Docs
-            </a>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <a
+            href="/documentation.html"
+            target="_blank"
+            style={{
+              fontSize: 13,
+              color: "#64748b",
+              textDecoration: "none",
+            }}
+          >
+            Docs
+          </a>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div
               style={{
                 width: 8,
